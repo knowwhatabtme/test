@@ -1,57 +1,60 @@
-version: '3.8'
+version: '3'
 services:
-  main:
-    container_name: Serve
+  
+  #PHP
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    command: 'php artisan serve --host=0.0.0.0'
+    image: habib/php
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
     volumes:
-      - .:/app
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  #Nginx
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
     ports:
-      - 8000:8000
+      - "8989:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./nginx/:/etc/nginx/conf.d/
+    networks:
+      - app-network
 
-  queue:
-    container_name: Queue
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: 'php artisan queue:work'
-    depends_on:
-      - db
-
+  #MySQL
   db:
-    platform: linux/x86_64
-    image: mysql:8.0
-    container_name: Database
-    environment:
-      MYSQL_DATABASE: "${DB_DATABASE}"
-      MYSQL_USER: "${DB_USERNAME}"
-      MYSQL_ROOT: "root"
-      MYSQL_PASSWORD: "${DB_PASSWORD}"
-      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
-    volumes:
-      - db:/var/lib/mysql
+    image: postgres:14-alpine
+    container_name: db
+    restart: unless-stopped
     ports:
-      - 3306:3306
-
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: PhpMyAdmin
-    links:
-      - db
+      - "5432:5432"
     environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-      PMA_ARBITRARY: 1
-    restart: always
-    ports:
-      - 8081:80
+      POSTGRES_DB: laravel
+      POSTGRES_USER: CIMEK
+      POSTGRES_PASSWORD: lukigio23
+    networks:
+      - app-network
 
+#Networks
 networks:
-  laravel-exa:
+  app-network:
     driver: bridge
 
+#Volumes
 volumes:
-  db:
+  dbdata:
     driver: local
